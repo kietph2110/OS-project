@@ -2,7 +2,7 @@
 
 Course: Operating Systems – 20261 · Nhóm: Phạm Nguyễn Anh Kiệt (20233483), Đặng Trung Kiên (20233473), Trần Ngọc Lâm (20223714)
 
-Bản Tuần 3: đã có mục 1–4, 6, 8 và phần của Kiệt ở mục 7; mục 5 và phần test của mục 7 do Lâm viết tiếp.
+Bản Tuần 3: thiết kế dự kiến và kế hoạch kiểm thử; mục 5 phân biệt spinlock hiện có với các thành phần sẽ triển khai theo lộ trình.
 
 | Mục | Nội dung | Người viết |
 | --- | --- | --- |
@@ -108,8 +108,23 @@ Thêm `kref_inc()` và `kref_get()` vào `kernel/defs.h`. `kalloc()` và `kfree(
 
 ## 5. Thư viện tầng user (Lâm)
 
-- `user/usync.c`: spinlock, mutex 3 trạng thái (0 tự do, 1 bị khóa, 2 bị khóa và có người chờ), semaphore, condition variable, barrier.
-- Sơ đồ trạng thái mutex và semaphore: lấy từ Figma.
+Thư viện gồm `user/usync.h` khai báo kiểu dữ liệu/giao diện và `user/usync.c` cài đặt các công cụ đồng bộ. Khi dùng giữa nhiều tiến trình, đối tượng đồng bộ và dữ liệu được bảo vệ phải nằm trong trang nhớ chung, khởi tạo trước khi các tiến trình sử dụng.
+
+**Tuần 3 — spinlock.** Phần code đã có trên nhánh `lam` gồm `uspinlock_t` và ba hàm `uspin_init/lock/unlock`. Biến `locked` có hai trạng thái 0/1. Lấy khóa dùng atomic exchange với acquire, lặp đến khi giá trị cũ bằng 0; nhả khóa dùng atomic store với release. Các thao tác này được compiler chuyển thành lệnh RISC-V phù hợp. Spinlock chờ bận, chưa sử dụng futex; test đơn tiến trình nằm trong `user/usynctest.c`.
+
+**Tuần 4–5 — mutex trên futex và demo.** Mutex dự kiến có ba trạng thái: 0 tự do, 1 đang khóa chưa ghi nhận tranh chấp, 2 đang khóa và có thể có người chờ. Đường nhanh lấy khóa bằng CAS 0→1; đường chậm đánh dấu 2 và chờ bằng futex. Khi nhả từ 2→0, đánh thức một người chờ; người được đánh thức phải thử lấy khóa lại. Tuần 5 demo mutex giữa nhiều tiến trình.
+
+![Sơ đồ trạng thái mutex trên futex](images/mutex_state_machine.png)
+
+*Hình 1. Thiết kế logic mutex cho tuần 4, không phải sơ đồ spinlock đã cài tuần 3. Chuyển trạng thái phải dùng thao tác nguyên tử; nếu đường chậm gặp trạng thái 0 thì lấy khóa bằng 0→2 thay vì ngủ.*
+
+**Tuần 6 — semaphore và condition variable.** Semaphore quản lý số quyền sử dụng tài nguyên; condition variable cho phép chờ điều kiện với mutex đi kèm và kiểm tra lại điều kiện sau khi thức dậy.
+
+![Sơ đồ trạng thái semaphore với bộ đếm có dấu](images/semaphore_state_machine.png)
+
+*Hình 2. Mô hình semaphore trừu tượng đã đề xuất ở tuần 2: P là lấy quyền, V là trả quyền; s > 0 là số quyền còn lại, s < 0 biểu diễn -s yêu cầu chưa được cấp quyền. s = 0 không có yêu cầu chưa được cấp quyền, dù tiến trình vừa được cấp quyền có thể chưa được CPU chạy lại. Mô hình giả định cập nhật bộ đếm, đăng ký chờ và cấp quyền/đánh thức được phối hợp an toàn; đây chưa phải thuật toán futex hoàn chỉnh. Không thể chỉ ghép s--/s++ với wait/wake trên s để bảo đảm đúng.*
+
+**Tuần 7 — barrier và ứng dụng.** Bổ sung barrier tái sử dụng để các tiến trình đợi đủ thành viên trong mỗi lượt, cùng bounded buffer và dining philosophers. Chi tiết cài đặt semaphore, condition variable và barrier sẽ được chốt khi triển khai.
 
 ## 6. Danh sách file bị sửa (cả nhóm)
 
@@ -128,10 +143,10 @@ Thêm `kref_inc()` và `kref_get()` vào `kernel/defs.h`. `kalloc()` và `kfree(
 
 ## 7. Kế hoạch kiểm thử (Lâm + Kiệt, viết ở Tuần 3)
 
-- Test chức năng cho từng syscall, gồm tham số sai và mã lỗi trả về.
-- Bounded buffer, dining philosophers, barrier; chạy với `CPUS=1` và `CPUS=4`, lặp ít nhất 10 lần.
-- Đếm số trang trống trước và sau bộ test để phát hiện rò rỉ.
-- `usertests` và `grind` gốc vẫn phải PASS; tất cả chạy tự động trên GitHub Actions.
+- **Chức năng (Lâm).** Tuần 3: `usynctest` kiểm tra khởi tạo, khóa, mở khóa, lấy lại khóa và 100.000 vòng lock/unlock với bộ đếm đúng. Tuần 4–5: P tiến trình tăng bộ đếm chung K lần dưới mutex, kết quả phải bằng P × K và mọi tiến trình kết thúc; phối hợp Kiệt kiểm tra tham số futex và tình huống wait/wake sát nhau. Tuần 6–7: semaphore không cấp vượt số tài nguyên; condition variable luôn kiểm tra lại điều kiện dưới mutex; barrier không cho qua trước khi đủ thành viên; bounded buffer không mất/lặp dữ liệu và dining philosophers không deadlock.
+- **Stress (Tuần 7).** Phối hợp Kiệt chạy các ca tranh chấp với `CPUS=1` và `CPUS=4`, lặp ít nhất 10 lần, có timeout để phát hiện treo. Ghi cấu hình, commit và kết quả; chỉ đánh dấu PASS khi thỏa điều kiện kiểm tra. Test đơn tiến trình tuần 3 chưa chứng minh tính đúng khi tranh chấp.
+- **Rò rỉ trang (Tuần 6).** Lâm đề xuất tiêu chí kiểm thử; Kiên triển khai đo số trang trống trước/sau chu kỳ cấp trang chung, fork, exit/exec và thu hồi tiến trình con bằng wait. Sau khi bỏ mọi ánh xạ và thu hồi tài nguyên, số trang trống phải trở về mốc trong cùng điều kiện đo, không giảm dần qua các lượt; không giải phóng sớm hoặc double-free.
+- **Hồi quy (cả nhóm).** Tuần 8 chạy `usertests` và `grind`, xử lý lỗi trước code freeze; có thể chạy sớm sau mỗi lần tích hợp để phát hiện lỗi.
 - **Benchmark (Kiệt).** `user/futexbench.c` cho nhiều tiến trình cùng tranh một khóa, so sánh futex, spinlock và yield lock trên 1–4 CPU. Mỗi điểm dữ liệu chạy ít nhất 5 lần, báo cáo trung bình và độ lệch.
 - **CI (Kiệt).** GitHub Actions kiểm tra định dạng, build và chạy `usertests` trên mỗi lần push; từ Tuần 5 chạy thêm `projecttests`.
 
@@ -142,3 +157,4 @@ Mỗi tuần mỗi người một bước nhỏ, các bước ghép lại để 
 ![Kế hoạch Tuần 3–9](ke_hoach_tuan.png)
 
 Tuần 5 cần mutex trên futex chạy giữa nhiều tiến trình, nên ba việc của Tuần 4 (futex thật, shmalloc, mutex) phải xong cùng lúc.
+
