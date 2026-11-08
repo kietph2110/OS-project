@@ -111,30 +111,45 @@ sys_uptime(void)
   return xticks;
 }
 
-// Not implemented yet: only validates addr for now.
+// Checks the futex word against val. Sleeping comes next week.
 uint64
 sys_futex_wait(void)
 {
-  uint64 addr;
+  uint64 addr, key;
   int val;
 
   argaddr(0, &addr);
   argint(1, &val);
-  if (futex_key(myproc()->pagetable, addr) == 0)
+  key = futex_key(myproc()->pagetable, addr);
+  if (key == 0)
     return -1;
+
+  acquire(&futex_lock);
+  if (*(int *)key != val) {
+    release(&futex_lock);
+    return -1;
+  }
+  release(&futex_lock);
   return 0;
 }
 
-// Not implemented yet: only validates addr and n for now.
+// Wakes at most n waiters on addr and returns how many.
 uint64
 sys_futex_wake(void)
 {
-  uint64 addr;
-  int n;
+  uint64 addr, key;
+  int n, woken;
 
   argaddr(0, &addr);
   argint(1, &n);
-  if (n <= 0 || futex_key(myproc()->pagetable, addr) == 0)
+  if (n <= 0)
     return -1;
-  return 0;
+  key = futex_key(myproc()->pagetable, addr);
+  if (key == 0)
+    return -1;
+
+  acquire(&futex_lock);
+  woken = wakeup_n((void *)key, n);
+  release(&futex_lock);
+  return woken;
 }
