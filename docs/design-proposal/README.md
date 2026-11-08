@@ -64,8 +64,25 @@ Nhóm thêm ba system call; `futex_wait` và `futex_wake` (số 23, 24) đã có
 ## 3. Cấu trúc dữ liệu kernel (Kiệt + Kiên, viết ở Tuần 3)
 
 - Hàng đợi futex: cấu trúc đã chọn ở câu hỏi mở mục 2, khóa bảo vệ, cách `wakeup_n` đánh thức tối đa n tiến trình (Kiệt).
-- `refcnt[(PHYSTOP - KERNBASE) / PGSIZE]` trong `kernel/kalloc.c` với khóa riêng (Kiên).
-- Cờ `PTE_SH` = bit RSW 8 của PTE đánh dấu trang dùng chung (Kiên).
+- **Bộ đếm tham chiếu `refcnt[]` (Kiên).** Trong `kernel/kalloc.c`:
+
+  ```c
+  #define PA2IDX(pa) (((uint64)(pa) - KERNBASE) / PGSIZE)
+  #define NPHYSPAGES ((PHYSTOP - KERNBASE) / PGSIZE) // 32 768 trang
+
+  struct {
+    struct spinlock lock;
+    int refcnt[NPHYSPAGES];
+  } kref;
+  ```
+
+  - Mỗi trang vật lý 4 KB có một ô `int`, tổng cộng 128 KB. Mảng nằm trong BSS nên được xóa về 0 khi khởi động.
+  - Bất biến: trang trong freelist có `refcnt = 0`; trang đang dùng có `refcnt` bằng số bảng trang đang ánh xạ tới nó.
+  - Khóa riêng `kref.lock`, tách khỏi `kmem.lock`; `kalloc()` và `kfree()` không bao giờ giữ cả hai khóa cùng lúc.
+  - `kalloc()` đặt 0 → 1; `kfree()` giảm 1, chỉ trả trang về freelist khi về 0 và `panic` nếu bộ đếm đã ≤ 0 (double-free); `kref_inc()` tăng 1 cho trang đang dùng; `kref_get()` đọc bộ đếm để kiểm thử.
+  - `freerange()` đặt `refcnt = 1` trước khi gọi `kfree()` cho từng trang lúc khởi động.
+- **Cờ `PTE_SH` (Kiên).** `#define PTE_SH (1L << 8)` trong `kernel/riscv.h`: bit RSW mà phần cứng bỏ qua, được `PTE_FLAGS()` giữ nguyên khi chép sang bảng trang con. Chỉ trang do `shmalloc()` cấp mới có cờ này; `uvmcopy()` dựa vào nó để chọn chia sẻ hay sao chép trang (xem mục 4).
+- Trạng thái Tuần 3: `refcnt[]` đã cài trong bộ cấp phát, mọi trang vẫn có `refcnt = 1` vì chưa chia sẻ; `PTE_SH` và `shmalloc()` cài ở Tuần 4.
 
 ## 4. Bộ nhớ dùng chung (Kiên)
 
