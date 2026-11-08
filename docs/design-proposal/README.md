@@ -2,7 +2,7 @@
 
 Course: Operating Systems – 20261 · Nhóm: Phạm Nguyễn Anh Kiệt (20233483), Đặng Trung Kiên (20233473), Trần Ngọc Lâm (20223714)
 
-Bản nháp Tuần 2: Kiệt đã viết dàn ý, mục 1, mục 2 và mục 8; các mục còn lại do Kiên và Lâm viết tiếp, nộp bản hoàn chỉnh (2–3 trang) ở Tuần 3. Bản Word để nộp: [`Design_Proposal_26107.docx`](Design_Proposal_26107.docx).
+Bản Tuần 3: đã có mục 1–4, 6, 8 và phần của Kiệt ở mục 7; mục 5 và phần test của mục 7 do Lâm viết tiếp.
 
 | Mục | Nội dung | Người viết |
 | --- | --- | --- |
@@ -19,22 +19,11 @@ Bản nháp Tuần 2: Kiệt đã viết dàn ý, mục 1, mục 2 và mục 8; 
 
 Dự án bổ sung futex vào xv6-riscv để các tiến trình đồng bộ với nhau mà không tốn CPU khi chờ, rồi xây thư viện mutex, semaphore, condition variable và barrier ở tầng user trên nền đó.
 
-**Bài toán.** xv6 gốc chỉ có spinlock và sleeplock dùng bên trong kernel. Chương trình user muốn chờ một khóa chỉ có hai cách: quay vòng kiểm tra (spin), tốn trọn một CPU, hoặc gọi `pause` rồi thử lại, vẫn tốn chuyển ngữ cảnh vô ích. Các tiến trình cũng chưa có vùng nhớ chung để đặt biến khóa.
+**Bài toán.** Chương trình user trong xv6 muốn chờ một khóa chỉ có thể spin, tốn trọn một CPU, hoặc gọi `pause` rồi thử lại. Các tiến trình cũng chưa có vùng nhớ chung để đặt biến khóa.
 
-**Giải pháp.** Futex (fast userspace mutex) tách hai trường hợp:
+**Giải pháp.** Khi không tranh chấp, khóa và mở khóa chỉ dùng lệnh nguyên tử RISC-V ở tầng user. Khi có tranh chấp, tiến trình gọi `futex_wait` để ngủ trong kernel và được đánh thức bằng `futex_wake`. Khóa định danh là địa chỉ vật lý của biến futex, nên hai tiến trình dùng chung trang nhớ sẽ chờ trên cùng một khóa.
 
-- Không tranh chấp: khóa và mở khóa chỉ bằng lệnh nguyên tử RISC-V ở tầng user, không vào kernel.
-- Có tranh chấp: tiến trình gọi `futex_wait` để ngủ trong kernel; tiến trình nhả khóa gọi `futex_wake` để đánh thức.
-- Khóa định danh là địa chỉ vật lý của biến futex, nên hai tiến trình dùng chung một trang nhớ (qua `shmalloc` + `fork`) sẽ chờ trên cùng một khóa.
-
-**Sản phẩm cuối kỳ.**
-
-- System call `futex_wait`, `futex_wake` và `shmalloc` trong kernel.
-- Thư viện đồng bộ tầng user: mutex, semaphore, condition variable, barrier.
-- Bộ test một lệnh (`projecttests`) in PASS/FAIL: bounded buffer, dining philosophers, barrier, test lỗi tham số, test rò rỉ trang.
-- Chương trình benchmark so sánh futex, spinlock và yield lock trên 1–4 CPU.
-- Demo: dining philosophers chạy không deadlock và đồ thị benchmark.
-- Mở rộng nếu kịp: reader–writer lock, mutex có priority inheritance.
+**Sản phẩm cuối kỳ.** Ba system call `futex_wait`, `futex_wake`, `shmalloc`; thư viện mutex, semaphore, condition variable, barrier; bộ test `projecttests`; benchmark futex, spinlock và yield lock trên 1–4 CPU; demo dining philosophers.
 
 ## 2. Giao diện system call
 
@@ -54,16 +43,17 @@ Nhóm thêm ba system call; `futex_wait` và `futex_wake` (số 23, 24) đã có
 
 **Vì sao `futex_wait` cần tham số `val`.** Giữa lúc user thấy khóa bận và lúc vào kernel, tiến trình khác có thể đã nhả khóa và gọi `futex_wake`. Kernel đọc lại `*addr` trong lúc giữ khóa của hàng đợi; nếu giá trị đã khác `val` thì trả về ngay thay vì ngủ, tránh mất tín hiệu đánh thức (lost wake-up).
 
-**Trạng thái hiện tại (Tuần 2).** Hai hàm `sys_futex_wait`, `sys_futex_wake` trong `kernel/sysproc.c` đọc tham số và kiểm tra địa chỉ, chưa chờ hoặc đánh thức thật. Chương trình `futexstub` kiểm tra 5 trường hợp tham số đúng và sai.
+**Trạng thái hiện tại (Tuần 3).** `sys_futex_wait` đã so sánh `*addr` với `val` nhưng chưa ngủ (làm ở Tuần 4); `sys_futex_wake` đã gọi `wakeup_n`. Chương trình `futexstub` kiểm tra 7 trường hợp tham số đúng và sai.
 
 **Câu hỏi mở:**
 
-- [ ] Cấu trúc hàng đợi futex: dùng thẳng khóa vật lý làm `chan` trong `struct proc`, hay bảng băm có spinlock theo từng bucket (chốt ở Tuần 3).
 - [ ] Benchmark "yield lock" cần system call `yield()` mà xv6 chưa có; dự kiến Kiệt thêm cùng chương trình benchmark ở Tuần 6.
 
 ## 3. Cấu trúc dữ liệu kernel (Kiệt + Kiên, viết ở Tuần 3)
 
-- Hàng đợi futex: cấu trúc đã chọn ở câu hỏi mở mục 2, khóa bảo vệ, cách `wakeup_n` đánh thức tối đa n tiến trình (Kiệt).
+- **Hàng đợi futex (Kiệt).** Không thêm cấu trúc mới: tiến trình chờ được đánh dấu bằng `p->chan = key`, trong đó `key` là địa chỉ vật lý do `futex_key()` trả về. Một spinlock `futex_lock` trong `kernel/proc.c` bảo vệ bước kiểm tra giá trị. Trang user không bao giờ trùng với đối tượng kernel, nên `key` không đụng các kênh chờ khác.
+  - `wakeup_n(chan, n)` duyệt bảng `proc`, đánh thức tối đa `n` tiến trình có `p->chan == chan` và trả về số đã đánh thức. Nhóm chọn cách này thay cho bảng băm vì `NPROC = 64`, quét toàn bảng đủ nhanh và dùng lại được `sleep_prepare()`/`sleep()`. Hạn chế: một lock chung và không đánh thức theo FIFO.
+  - Chống mất tín hiệu: `futex_wait` giữ `futex_lock`, so sánh `*addr` với `val`, gọi `sleep_prepare(key)`, nhả lock rồi gọi `sleep()`. Nếu `futex_wake` chen vào giữa, `p->chan` đã bị xóa nên `sleep()` trả về ngay.
 - **Bộ đếm tham chiếu `refcnt[]` (Kiên).** Trong `kernel/kalloc.c`:
 
   ```c
@@ -142,7 +132,8 @@ Thêm `kref_inc()` và `kref_get()` vào `kernel/defs.h`. `kalloc()` và `kfree(
 - Bounded buffer, dining philosophers, barrier; chạy với `CPUS=1` và `CPUS=4`, lặp ít nhất 10 lần.
 - Đếm số trang trống trước và sau bộ test để phát hiện rò rỉ.
 - `usertests` và `grind` gốc vẫn phải PASS; tất cả chạy tự động trên GitHub Actions.
-- Benchmark: mỗi điểm dữ liệu chạy ít nhất 5 lần, báo cáo trung bình và độ lệch.
+- **Benchmark (Kiệt).** `user/futexbench.c` cho nhiều tiến trình cùng tranh một khóa, so sánh futex, spinlock và yield lock trên 1–4 CPU. Mỗi điểm dữ liệu chạy ít nhất 5 lần, báo cáo trung bình và độ lệch.
+- **CI (Kiệt).** GitHub Actions kiểm tra định dạng, build và chạy `usertests` trên mỗi lần push; từ Tuần 5 chạy thêm `projecttests`.
 
 ## 8. Kế hoạch theo tuần (Kiệt)
 
