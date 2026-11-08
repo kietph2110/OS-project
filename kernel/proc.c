@@ -26,6 +26,9 @@ extern char trampoline[]; // trampoline.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
+// Protects the check of a futex word against a concurrent wake.
+struct spinlock futex_lock;
+
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
@@ -51,6 +54,7 @@ procinit(void)
 
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
+  initlock(&futex_lock, "futex");
   for (p = proc; p < &proc[NPROC]; p++) {
     initlock(&p->lock, "proc");
     p->state = UNUSED;
@@ -592,6 +596,28 @@ wakeup(void *chan)
     }
     release(&p->lock);
   }
+}
+
+// Wake up at most n processes waiting on chan.
+// Return the number of processes woken.
+int
+wakeup_n(void *chan, int n)
+{
+  struct proc *p;
+  int woken = 0;
+
+  for (p = proc; p < &proc[NPROC] && woken < n; p++) {
+    acquire(&p->lock);
+    if (p->chan == chan) {
+      p->chan = 0;
+      if (p->state == SLEEPING) {
+        p->state = RUNNABLE;
+      }
+      woken++;
+    }
+    release(&p->lock);
+  }
+  return woken;
 }
 
 // Kill the process with the given pid.
