@@ -30,7 +30,7 @@ killed_waiter(void)
     // A killed process never gets back to user space.
     exit(0);
   }
-  sleep(5);
+  pause(5);
   kill(pid);
   int status = -2;
   wait(&status);
