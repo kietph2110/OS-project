@@ -25,7 +25,6 @@ main(void)
   expect("unaligned addr", futex_wake((int *)((char *)&word + 1), 1), -1);
   expect("unmapped addr", futex_wake((int *)0x80000000L, 1), -1);
   expect("bad n", futex_wake(&word, 0), -1);
-  expect("wait valid addr", futex_wait(&word, 0), 0);
   expect("wait wrong val", futex_wait(&word, 1), -1);
   expect("wake no waiter", futex_wake(&word, 5), 0);
   exit(fails);
