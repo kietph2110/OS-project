@@ -111,7 +111,7 @@ sys_uptime(void)
   return xticks;
 }
 
-// Checks the futex word against val. Sleeping comes next week.
+// Sleeps on addr if the futex word still equals val, else returns -1.
 uint64
 sys_futex_wait(void)
 {
@@ -129,7 +129,11 @@ sys_futex_wait(void)
     release(&futex_lock);
     return -1;
   }
+  // Register on the channel before dropping futex_lock so a wake that
+  // arrives in between still finds this process.
+  sleep_prepare((void *)key);
   release(&futex_lock);
+  sleep();
   return 0;
 }
 
