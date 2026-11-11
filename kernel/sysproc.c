@@ -134,6 +134,15 @@ sys_futex_wait(void)
   sleep_prepare((void *)key);
   release(&futex_lock);
   sleep();
+
+  // kkill() wakes a sleeper without clearing its channel; clear it here
+  // so a later futex_wake does not count this process as a waiter.
+  if (killed(myproc())) {
+    acquire(&myproc()->lock);
+    myproc()->chan = 0;
+    release(&myproc()->lock);
+    return -1;
+  }
   return 0;
 }
 
