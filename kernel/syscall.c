@@ -105,6 +105,7 @@ extern uint64 sys_close(void);
 extern uint64 sys_sync(void);
 extern uint64 sys_futex_wait(void);
 extern uint64 sys_futex_wake(void);
+extern uint64 sys_shmalloc(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -134,6 +135,7 @@ static uint64 (*syscalls[])(void) = {
   [SYS_sync]    = sys_sync,
   [SYS_futex_wait] = sys_futex_wait,
   [SYS_futex_wake] = sys_futex_wake,
+  [SYS_shmalloc] = sys_shmalloc,
   // clang-format on
 };
 

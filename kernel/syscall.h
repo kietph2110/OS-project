@@ -25,3 +25,6 @@
 // futex
 #define SYS_futex_wait 23
 #define SYS_futex_wake 24
+
+// shared memory
+#define SYS_shmalloc 25
