@@ -152,6 +152,7 @@ UPROGS=\
 	$U/_dorphan\
 	$U/_sync\
 	$U/_futexstub\
+	$U/_shmtest\
         $U/_usynctest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
