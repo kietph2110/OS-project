@@ -45,3 +45,4 @@ entry("uptime");
 entry("sync");
 entry("futex_wait");
 entry("futex_wake");
+entry("shmalloc");

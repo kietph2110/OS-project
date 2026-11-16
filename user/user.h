@@ -27,6 +27,7 @@ int uptime(void);
 int sync(void);
 int futex_wait(int *, int);
 int futex_wake(int *, int);
+void *shmalloc(int);
 
 // ulib.c
 int stat(const char *, struct stat *);

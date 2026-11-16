@@ -339,6 +339,13 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       continue; // physical page hasn't been allocated
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
+    if (flags & PTE_SH) {
+      // Shared page: map the same physical page into the child.
+      if (mappages(new, i, PGSIZE, pa, flags) != 0)
+        goto err;
+      kref_inc((void *)pa);
+      continue;
+    }
     if ((mem = kalloc()) == 0)
       goto err;
     memmove(mem, (char *)pa, PGSIZE);

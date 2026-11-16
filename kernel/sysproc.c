@@ -166,3 +166,41 @@ sys_futex_wake(void)
   release(&futex_lock);
   return woken;
 }
+
+#define SHM_MAXPAGES 16
+
+// Allocate npages zeroed pages above the process image and map them
+// with PTE_SH, so that fork() shares them instead of copying.
+// Returns the virtual address, or 0 on error.
+uint64
+sys_shmalloc(void)
+{
+  struct proc *p = myproc();
+  uint64 va, a;
+  char *mem;
+  int n;
+
+  argint(0, &n);
+  if (n <= 0 || n > SHM_MAXPAGES)
+    return 0;
+  va = PGROUNDUP(p->sz);
+  if (va + (uint64)n * PGSIZE > TRAPFRAME)
+    return 0;
+
+  for (a = va; a < va + (uint64)n * PGSIZE; a += PGSIZE) {
+    if ((mem = kalloc()) == 0)
+      goto bad;
+    memset(mem, 0, PGSIZE);
+    if (mappages(p->pagetable, a, PGSIZE, (uint64)mem,
+                 PTE_R | PTE_W | PTE_U | PTE_SH) != 0) {
+      kfree(mem);
+      goto bad;
+    }
+  }
+  p->sz = va + (uint64)n * PGSIZE;
+  return va;
+
+bad:
+  uvmunmap(p->pagetable, va, (a - va) / PGSIZE, 1);
+  return 0;
+}
