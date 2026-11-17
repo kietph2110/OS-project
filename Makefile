@@ -154,6 +154,7 @@ UPROGS=\
 	$U/_futexstub\
 	$U/_shmtest\
         $U/_usynctest\
+        $U/_mutexcounter\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
