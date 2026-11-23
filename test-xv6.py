@@ -71,7 +71,16 @@ class QEMU(object):
         os.kill(kids[0], signal.SIGKILL)
 
     def stop(self):
+        # Kill qemu too, not only make, so it does not keep running
+        # (and using CPU) while the next test boots.
+        ps = run(['ps', '-opid', '--no-headers', '--ppid', str(self.proc.pid)], stdout=subprocess.PIPE, encoding='utf8')
+        for line in ps.stdout.splitlines():
+            try:
+                os.kill(int(line), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
         self.proc.terminate()
+        self.proc.wait()
 
     def read(self):
         while True:
