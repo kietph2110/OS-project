@@ -156,6 +156,7 @@ UPROGS=\
         $U/_usynctest\
         $U/_mutexcounter\
         $U/_semaphoretest\
+	$U/_projecttests\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
