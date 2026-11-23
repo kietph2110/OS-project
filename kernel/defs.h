@@ -62,6 +62,7 @@ void            kfree(void *);
 void            kinit(void);
 void            kref_inc(void *);
 int             kref_get(void *);
+int             kfreecount(void);
 
 // log.c
 void            initlog(int, struct superblock*);

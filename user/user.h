@@ -28,6 +28,7 @@ int sync(void);
 int futex_wait(int *, int);
 int futex_wake(int *, int);
 void *shmalloc(int);
+int freepages(void);
 
 // ulib.c
 int stat(const char *, struct stat *);
