@@ -140,3 +140,17 @@ kalloc(void)
   }
   return (void *)r;
 }
+
+// Number of pages on the freelist, used by tests to detect leaks.
+int
+kfreecount(void)
+{
+  struct run *r;
+  int n = 0;
+
+  acquire(&kmem.lock);
+  for (r = kmem.freelist; r; r = r->next)
+    n++;
+  release(&kmem.lock);
+  return n;
+}

@@ -204,3 +204,10 @@ bad:
   uvmunmap(p->pagetable, va, (a - va) / PGSIZE, 1);
   return 0;
 }
+
+// Return the number of free physical pages.
+uint64
+sys_freepages(void)
+{
+  return kfreecount();
+}
