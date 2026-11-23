@@ -9,6 +9,8 @@ jobs:
       - run: make fmt && git diff --exit-code
       - run: make kernel/kernel fs.img
       - run: ./test-xv6.py usertests
+      - run: CPUS=1 ./test-xv6.py projecttests
+      - run: CPUS=4 ./test-xv6.py projecttests
       - run: ./test-xv6.py crash
 
   macos:
