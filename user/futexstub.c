@@ -106,5 +106,9 @@ main(void)
   killed_waiter();
   parent_wait_child_wake();
   wake_one_at_a_time();
+  if (fails == 0)
+    printf("futexstub: ALL PASS\n");
+  else
+    printf("futexstub: %d FAIL\n", fails);
   exit(fails);
 }
