@@ -121,4 +121,3 @@ main(void)
   printf("semaphoretest: ALL PASS\n");
   exit(0);
 }
-
