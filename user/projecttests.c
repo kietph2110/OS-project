@@ -9,6 +9,7 @@ char *tests[] = {
   "shmtest",
   "usynctest",
   "mutexcounter",
+  "semaphoretest",
 };
 
 #define NTESTS ((int)(sizeof(tests) / sizeof(tests[0])))
