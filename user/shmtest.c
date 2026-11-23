@@ -2,7 +2,8 @@
 #include "user/user.h"
 
 // Tests for shmalloc(): pages from shmalloc() are shared between
-// parent and child after fork(), ordinary memory is still copied.
+// parent and child after fork(), ordinary memory is still copied, and
+// shared pages are freed once no process uses them (exit, exec, sbrk).
 
 #define PGSIZE 4096
 
@@ -158,9 +159,82 @@ repeat_fork(void)
   expect("50 fork/exit rounds", c[0], 50);
 }
 
-int
-main(void)
+// Every round, a child allocates shared pages and shares them with a
+// grandchild; both exit. The number of free pages must not change.
+void
+leak_fork_exit(void)
 {
+  int before = 0, after;
+
+  for (int round = 0; round < 21; round++) {
+    if (round == 1)
+      before = freepages();
+    if (fork() == 0) {
+      int *p = shmalloc(4);
+      if (fork() == 0) {
+        p[0] = 1;
+        exit(0);
+      }
+      wait(0);
+      exit(0);
+    }
+    wait(0);
+  }
+  after = freepages();
+  expect("no page leak after fork/exit", after - before, 0);
+}
+
+// The child allocates shared pages and replaces itself with exec();
+// exec() must drop the old shared pages.
+void
+leak_exec(void)
+{
+  char *argv[] = {"shmtest", "exit", 0};
+  int before = 0, after;
+
+  for (int round = 0; round < 21; round++) {
+    if (round == 1)
+      before = freepages();
+    if (fork() == 0) {
+      int *p = shmalloc(4);
+      p[0] = 1;
+      exec("shmtest", argv);
+      exit(1);
+    }
+    wait(0);
+  }
+  after = freepages();
+  expect("no page leak after exec", after - before, 0);
+}
+
+// The child shrinks its memory with sbrk() over the shared pages.
+void
+leak_sbrk(void)
+{
+  int before = 0, after;
+
+  for (int round = 0; round < 21; round++) {
+    if (round == 1)
+      before = freepages();
+    if (fork() == 0) {
+      int *p = shmalloc(2);
+      p[0] = 1;
+      sbrk(-2 * PGSIZE);
+      exit(0);
+    }
+    wait(0);
+  }
+  after = freepages();
+  expect("no page leak after sbrk shrink", after - before, 0);
+}
+
+int
+main(int argc, char *argv[])
+{
+  // used by leak_exec(): the exec'd program exits at once
+  if (argc > 1 && strcmp(argv[1], "exit") == 0)
+    exit(0);
+
   bad_args();
   zeroed_page();
   child_writes();
@@ -169,6 +243,9 @@ main(void)
   parent_exits_first();
   futex_shared();
   repeat_fork();
+  leak_fork_exit();
+  leak_exec();
+  leak_sbrk();
   if (fails == 0)
     printf("shmtest: ALL PASS\n");
   else
