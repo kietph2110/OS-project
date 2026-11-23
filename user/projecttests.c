@@ -5,11 +5,7 @@
 // failed. Exits with the number of failed tests.
 
 char *tests[] = {
-  "futexstub",
-  "shmtest",
-  "usynctest",
-  "mutexcounter",
-  "semaphoretest",
+  "futexstub", "shmtest", "usynctest", "mutexcounter", "semaphoretest",
 };
 
 #define NTESTS ((int)(sizeof(tests) / sizeof(tests[0])))
