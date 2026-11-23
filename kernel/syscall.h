@@ -27,4 +27,5 @@
 #define SYS_futex_wake 24
 
 // shared memory
-#define SYS_shmalloc 25
+#define SYS_shmalloc  25
+#define SYS_freepages 26
