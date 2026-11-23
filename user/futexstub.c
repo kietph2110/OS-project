@@ -62,6 +62,38 @@ parent_wait_child_wake(void)
   expect("child woke one waiter", status, 1);
 }
 
+// Two children sleep on the same word. futex_wake(w, 1) must wake
+// exactly one of them each time, and nobody once both are gone.
+void
+wake_one_at_a_time(void)
+{
+  int *w = shmalloc(1);
+  int *ready = w + 1;
+
+  if (w == 0) {
+    expect("shmalloc for wake count", 0, 1);
+    return;
+  }
+  for (int i = 0; i < 2; i++) {
+    if (fork() == 0) {
+      __atomic_fetch_add(ready, 1, __ATOMIC_SEQ_CST);
+      while (*w == 0)
+        futex_wait(w, 0);
+      exit(0);
+    }
+  }
+  while (*ready < 2)
+    pause(1);
+  // Give both children time to get into futex_wait.
+  pause(5);
+  *w = 1;
+  expect("first wake", futex_wake(w, 1), 1);
+  expect("second wake", futex_wake(w, 1), 1);
+  expect("third wake", futex_wake(w, 1), 0);
+  wait(0);
+  wait(0);
+}
+
 int
 main(void)
 {
@@ -73,5 +105,6 @@ main(void)
   expect("wake no waiter", futex_wake(&word, 5), 0);
   killed_waiter();
   parent_wait_child_wake();
+  wake_one_at_a_time();
   exit(fails);
 }
