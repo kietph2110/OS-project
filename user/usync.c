@@ -98,7 +98,7 @@ sem_wait(sem_t *s)
       return;
     }
 
-    int expected =  __atomic_load_n(&s->sequence, __ATOMIC_ACQUIRE);
+    int expected = __atomic_load_n(&s->sequence, __ATOMIC_ACQUIRE);
 
     mutex_unlock(&s->lock);
 
