@@ -207,6 +207,13 @@ def test_usertests(test=""):
     q.monitor('^ALL TESTS PASSED', progress='test', timeout=timeout)
     q.stop()
 
+def test_projecttests():
+    q = QEMU(True)
+    q.cmd("projecttests\n")
+    q.monitor('^projecttests: ', progress='.*(PASS|FAIL)', timeout=300)
+    q.match('^projecttests: ALL PASS')
+    q.stop()
+
 def main():
     print(args)
     rex = r'%s' % args.testrex
