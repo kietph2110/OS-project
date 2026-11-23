@@ -98,8 +98,7 @@ sem_wait(sem_t *s)
       return;
     }
 
-    int expected =
-      __atomic_load_n(&s->sequence, __ATOMIC_ACQUIRE);
+    int expected =  __atomic_load_n(&s->sequence, __ATOMIC_ACQUIRE);
 
     mutex_unlock(&s->lock);
 
@@ -126,8 +125,7 @@ sem_post(sem_t *s)
 
   if (wake) {
     s->served_ticket++;
-    __atomic_add_fetch(&s->sequence, 1,
-                       __ATOMIC_RELEASE);
+    __atomic_add_fetch(&s->sequence, 1, __ATOMIC_RELEASE);
   }
 
   mutex_unlock(&s->lock);

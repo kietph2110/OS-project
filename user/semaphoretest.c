@@ -4,7 +4,7 @@
 #include "user/usync.h"
 
 #define WORKERS 4
-#define LOOPS 20
+#define LOOPS   20
 
 struct shared_data {
   sem_t sem;
@@ -34,8 +34,7 @@ test_blocking(struct shared_data *s)
 
   if (pid == 0) {
     sem_wait(&s->sem);
-    __atomic_add_fetch(&s->completed, 1,
-                       __ATOMIC_SEQ_CST);
+    __atomic_add_fetch(&s->completed, 1, __ATOMIC_SEQ_CST);
     exit(0);
   }
 
@@ -57,10 +56,8 @@ test_blocking(struct shared_data *s)
   sem_post(&s->sem);
 
   int status = -1;
-  check(wait(&status) == pid && status == 0,
-        "child woke successfully");
-  check(s->completed == 1,
-        "blocking semaphore correct");
+  check(wait(&status) == pid && status == 0, "child woke successfully");
+  check(s->completed == 1, "blocking semaphore correct");
 }
 
 static void
@@ -79,23 +76,17 @@ test_contention(struct shared_data *s)
       for (int j = 0; j < LOOPS; j++) {
         sem_wait(&s->sem);
 
-        int n = __atomic_add_fetch(
-          &s->active, 1, __ATOMIC_SEQ_CST);
+        int n = __atomic_add_fetch(&s->active, 1, __ATOMIC_SEQ_CST);
 
         if (n > 2)
-          __atomic_add_fetch(
-            &s->violations, 1,
-            __ATOMIC_SEQ_CST);
+          __atomic_add_fetch(&s->violations, 1, __ATOMIC_SEQ_CST);
 
         // Keep the permit briefly to cause contention.
         pause(1);
 
-        __atomic_sub_fetch(
-          &s->active, 1, __ATOMIC_SEQ_CST);
+        __atomic_sub_fetch(&s->active, 1, __ATOMIC_SEQ_CST);
 
-        __atomic_add_fetch(
-          &s->completed, 1,
-          __ATOMIC_SEQ_CST);
+        __atomic_add_fetch(&s->completed, 1, __ATOMIC_SEQ_CST);
 
         sem_post(&s->sem);
       }
@@ -105,25 +96,17 @@ test_contention(struct shared_data *s)
 
   for (int i = 0; i < WORKERS; i++) {
     int status = -1;
-    check(wait(&status) > 0 && status == 0,
-          "worker completed");
+    check(wait(&status) > 0 && status == 0, "worker completed");
   }
 
-  printf("Expected operations: %d\n",
-         WORKERS * LOOPS);
-  printf("Actual operations: %d\n",
-         s->completed);
-  printf("Permit violations: %d\n",
-         s->violations);
+  printf("Expected operations: %d\n", WORKERS * LOOPS);
+  printf("Actual operations: %d\n", s->completed);
+  printf("Permit violations: %d\n", s->violations);
 
-  check(s->completed == WORKERS * LOOPS,
-        "all operations completed");
-  check(s->violations == 0,
-        "at most two concurrent workers");
-  check(s->active == 0,
-        "no active workers remain");
-  check(s->sem.value == 2,
-        "all permits returned");
+  check(s->completed == WORKERS * LOOPS, "all operations completed");
+  check(s->violations == 0, "at most two concurrent workers");
+  check(s->active == 0, "no active workers remain");
+  check(s->sem.value == 2, "all permits returned");
 }
 
 int
@@ -138,3 +121,4 @@ main(void)
   printf("semaphoretest: ALL PASS\n");
   exit(0);
 }
+
